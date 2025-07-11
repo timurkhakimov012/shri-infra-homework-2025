@@ -5,7 +5,7 @@ on:
 
 jobs:
   lint:
-    runs_on: ubuntu-latest
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -16,7 +16,7 @@ jobs:
 
   test:
     needs: [lint]
-    runs_on: ubuntu-latest
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v3
