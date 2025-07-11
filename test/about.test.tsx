@@ -9,3 +9,4 @@ describe('About', () => {
         expect(container.textContent).toBe('AboutAuthor: Malakhov');
     });
 });
+
