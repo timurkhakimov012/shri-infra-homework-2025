@@ -4,7 +4,6 @@ on:
   workflow_dispatch:
 
 env:
-  VERSION: ${{ github.run_number }}
   REGISTRY_ID: ${{ secrets.YANDEX_REGISTRY_ID }}
 
 jobs:
@@ -36,13 +35,13 @@ jobs:
           npm test
 
   release:
-    name: Release v${{ env.VERSION }}
+    name: Release v${{ github.run_number }}
     needs: [lint, test]
     runs-on: ubuntu-latest
     env:
-      VERSION: ${{ env.VERSION }}
-      REGISTRY_ID: ${{ env.REGISTRY_ID }}
-      YANDEX_SA_KEY: ${{ secrets.YANDEX_SA_KEY }}
+      VERSION: ${{ github.run_number }}
+      REGISTRY_ID: ${{ github.run_number }}
+      YANDEX_SA_KEY: ${{ github.run_number }}
     steps:
       - name: Checkout full history
         uses: actions/checkout@v3
