@@ -1,0 +1,134 @@
+name: Release
+
+on:
+  workflow_dispatch:
+
+env:
+  VERSION: ${{ github.run_number }}
+  REGISTRY_ID: ${{ secrets.YANDEX_REGISTRY_ID }}
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install dependencies
+        run: |
+          # замените на ваши команды установки зависимостей
+          npm ci
+      - name: Run linter
+        run: |
+          # замените на вашу команду линтера
+          npm run lint
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install dependencies
+        run: |
+          npm ci
+      - name: Run tests
+        run: |
+          # замените на вашу команду запуска тестов
+          npm test
+
+  release:
+    name: Release v${{ env.VERSION }}
+    needs: [lint, test]
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ env.VERSION }}
+      REGISTRY_ID: ${{ env.REGISTRY_ID }}
+      YANDEX_SA_KEY: ${{ secrets.YANDEX_SA_KEY }}
+    steps:
+      - name: Checkout full history
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Создать релизную ветку
+        run: |
+          git config user.name "${{ github.actor }}"
+          git config user.email "${{ github.actor }}@users.noreply.github.com"
+          git checkout -b releases/$VERSION origin/main
+          git push origin releases/$VERSION
+
+      - name: Логин в Yandex Container Registry
+        run: |
+          echo "$YANDEX_SA_KEY" \
+            | docker login --username json_key --password-stdin cr.yandex/$REGISTRY_ID
+
+      - name: Собрать Docker-образ с двумя тегами
+        run: |
+          docker build -t cr.yandex/$REGISTRY_ID/app:$VERSION .
+          docker tag cr.yandex/$REGISTRY_ID/app:$VERSION \
+                     cr.yandex/$REGISTRY_ID/app:${VERSION}_latest
+
+      - name: Запушить Docker-образы
+        run: |
+          docker push cr.yandex/$REGISTRY_ID/app:$VERSION
+          docker push cr.yandex/$REGISTRY_ID/app:${VERSION}_latest
+
+      - name: Найти предыдущий релизный тег
+        id: prev_tag
+        run: |
+          PREV=$(git tag --list "v*" --sort=-creatordate | sed -n '2p')
+          echo "PREV_TAG=$PREV" >> $GITHUB_OUTPUT
+
+      - name: Сформировать список коммитов
+        id: commits
+        run: |
+          git fetch --tags
+          PREV="${{ steps.prev_tag.outputs.PREV_TAG }}"
+          git log $PREV..HEAD --pretty=format:'- %s' > commits.txt
+          echo "COMMITS<<EOF" >> $GITHUB_OUTPUT
+          cat commits.txt >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Создать Git-тег
+        run: |
+          git tag -a v$VERSION -m "Release v$VERSION"
+          git push origin v$VERSION
+
+      - name: Обновить CHANGELOG.md
+        run: |
+          TODAY=$(date -u +"%Y-%m-%d")
+          {
+            echo "## v$VERSION — $TODAY"
+            echo
+            echo "${{ steps.commits.outputs.COMMITS }}"
+            echo
+            cat CHANGELOG.md
+          } > CHANGELOG.md
+          git add CHANGELOG.md
+          git commit -m "chore: update CHANGELOG for v$VERSION"
+          git push origin releases/$VERSION
+
+      - name: Создать GitHub Issue с деталями релиза
+        uses: actions/github-script@v6
+        env:
+          VERSION: ${{ env.VERSION }}
+          REGISTRY_ID: ${{ env.REGISTRY_ID }}
+          COMMITS: ${{ steps.commits.outputs.COMMITS }}
+        with:
+          script: |
+            const date = new Date().toISOString().split('T')[0];
+            const body = `**Release Date:** ${date}
+            **Author:** @${context.actor}
+            **Version:** v${process.env.VERSION}
+
+            **Commits:**
+            ${process.env.COMMITS}
+
+            **Docker Image:**
+            cr.yandex/${process.env.REGISTRY_ID}/app:${process.env.VERSION}
+            `;
+            await github.issues.create({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            title: `Release v${process.env.VERSION}`,
+            body: body,
+            });
