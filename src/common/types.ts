@@ -30,5 +30,5 @@ export interface Order {
 }
 
 export interface CheckoutResponse {
-    id: number;
+    id: number
 }
