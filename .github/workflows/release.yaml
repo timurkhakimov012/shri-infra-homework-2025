@@ -49,7 +49,7 @@ jobs:
 
       - name: Docker login
         run: |
-          ENDPOINT=$(yc container registry get --name infra-registry --format json | jq -r .endpoint)
+          ENDPOINT=$(yc container registry get --name inrfaregistry --format json | jq -r .endpoint)
           TOKEN=$(yc iam create-token)
           echo "$TOKEN" | docker login "$ENDPOINT" -u oauth --password-stdin
       
