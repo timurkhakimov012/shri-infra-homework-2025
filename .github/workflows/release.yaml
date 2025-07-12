@@ -67,14 +67,22 @@ jobs:
           export PATH="$HOME/.local/bin:$PATH"
 
       - name: Configure Yandex.Cloud CLI
+        shell: bash
         run: |
-          echo "${{ secrets.YC_SERVICE_KEY }}" > key.json
+          # Записываем секрет в key.json, не разбивая на строки- команды
+          cat << 'EOF' > key.json
+          ${{ secrets.YC_SERVICE_KEY }}
+          EOF
+
+      # Читаем поля из JSON
           CLOUD_ID=$(jq -r .cloud_id key.json)
           FOLDER_ID=$(jq -r .folder_id key.json)
+      
+      # Инициализируем yc CLI
           yc init --service-account-key-file key.json \
-                  --cloud-id "$CLOUD_ID" \
-                  --folder-id "$FOLDER_ID" \
-                  --no-interactive
+          --cloud-id "$CLOUD_ID" \
+          --folder-id "$FOLDER_ID" \
+          --no-interactive
 
       - name: Docker login
         run: |
