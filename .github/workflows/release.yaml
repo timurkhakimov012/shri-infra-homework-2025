@@ -35,19 +35,19 @@ jobs:
       - name: Determine previous tag & commits
         id: prev
         run: |
-          # Проверим, есть ли вообще теги
+         
           if git tag | grep . >/dev/null; then
             PREV_TAG=$(git describe --tags --abbrev=0)
             COMMITS=$(git log ${PREV_TAG}..HEAD --pretty=format:'- %s')
           else
             echo "No tags found → first release"
             PREV_TAG=""
-            # Можно вывести все коммиты, либо только последний:
+            
             COMMITS=$(git log --pretty=format:'- %s')
           fi
 
           echo "PREV_TAG=$PREV_TAG" >> $GITHUB_ENV
-          # Сохраним в переменную с многострочным значением
+         
           echo "COMMITS<<EOF" >> $GITHUB_ENV
           echo "$COMMITS"      >> $GITHUB_ENV
           echo "EOF"           >> $GITHUB_ENV
@@ -59,30 +59,33 @@ jobs:
           git checkout -b releases/${VERSION}
           git push origin releases/${VERSION}
 
-      - name: Install jq & YC-CLI
+      - name: Setup and configure Yandex.Cloud CLI
+        shell: bash
         run: |
           sudo apt-get update
           sudo apt-get install -y jq
           curl https://storage.yandexcloud.net/yandexcloud-yc/install.sh | bash
+        
+        
           export PATH="$HOME/.local/bin:$PATH"
-
-      - name: Configure Yandex.Cloud CLI
-        shell: bash
-        run: |
-         
+        
+       
           cat << 'EOF' > key.json
           ${{ secrets.YC_SERVICE_KEY }}
           EOF
-
-     
+  
+  
           CLOUD_ID=$(jq -r .cloud_id key.json)
           FOLDER_ID=$(jq -r .folder_id key.json)
-      
-      
-          yc init --service-account-key-file key.json \
-          --cloud-id "$CLOUD_ID" \
-          --folder-id "$FOLDER_ID" \
+  
+  
+          yc init --service-account-key-file=key.json \
+          --cloud-id="$CLOUD_ID" \
+          --folder-id="$FOLDER_ID" \
           --no-interactive
+  
+ 
+          yc --version
 
       - name: Docker login
         run: |
