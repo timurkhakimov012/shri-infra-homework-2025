@@ -49,8 +49,10 @@ jobs:
 
       - name: Docker login
         run: |
+          ENDPOINT=$(yc container registry get --name shri-infra-registry --format json | jq -r .endpoint)
           TOKEN=$(yc iam create-token)
-          echo "$TOKEN" | docker login cr.yandex -u oauth --password-stdin
+          echo "$TOKEN" | docker login "$ENDPOINT" -u oauth --password-stdin
+      
 
       - name: Build & Push Docker images
         run: |
