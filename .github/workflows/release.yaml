@@ -3,131 +3,125 @@ name: Release
 on:
   workflow_dispatch:
 
-env:
-  REGISTRY_ID: ${{ secrets.YANDEX_REGISTRY_ID }}
-
 jobs:
-  lint:
-    name: Lint
+  lint-and-test:
+    name: 🧹 Lint & Test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
       - name: Install dependencies
-        run: |
-          # замените на ваши команды установки зависимостей
-          npm ci
-      - name: Run linter
-        run: |
-          # замените на вашу команду линтера
-          npm run lint
-
-  test:
-    name: Test
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - name: Install dependencies
-        run: |
-          npm ci
-      - name: Run tests
-        run: |
-          # замените на вашу команду запуска тестов
-          npm test
+        run: npm ci
+      - name: Lint
+        run: npm run lint
+      - name: Test
+        run: npm test
 
   release:
-    name: Release v${{ github.run_number }}
-    needs: [lint, test]
+    name: 🚀 Release
+    needs: lint-and-test
     runs-on: ubuntu-latest
     env:
+      REGISTRY_ID: ${{ secrets.REGISTRY_ID }}
       VERSION: ${{ github.run_number }}
-      REGISTRY_ID: ${{ github.run_number }}
-      YANDEX_SA_KEY: ${{ github.run_number }}
     steps:
       - name: Checkout full history
         uses: actions/checkout@v3
         with:
           fetch-depth: 0
 
-      - name: Создать релизную ветку
-        run: |
-          git config user.name "${{ github.actor }}"
-          git config user.email "${{ github.actor }}@users.noreply.github.com"
-          git checkout -b releases/$VERSION origin/main
-          git push origin releases/$VERSION
+      - name: Fetch tags
+        run: git fetch --tags
 
-      - name: Логин в Yandex Container Registry
+      - name: Determine previous tag & commits
         run: |
-          echo "$YANDEX_SA_KEY" \
-            | docker login --username json_key --password-stdin cr.yandex/$REGISTRY_ID
+          PREV_TAG=$(git describe --tags --abbrev=0)
+          echo "PREV_TAG=$PREV_TAG" >> $GITHUB_ENV
 
-      - name: Собрать Docker-образ с двумя тегами
-        run: |
-          docker build -t cr.yandex/$REGISTRY_ID/app:$VERSION .
-          docker tag cr.yandex/$REGISTRY_ID/app:$VERSION \
-                     cr.yandex/$REGISTRY_ID/app:${VERSION}_latest
+          COMMITS=$(git log $PREV_TAG..HEAD --pretty=format:'- %s')
+          echo "COMMITS<<EOF" >> $GITHUB_ENV
+          echo "$COMMITS"      >> $GITHUB_ENV
+          echo "EOF"           >> $GITHUB_ENV
 
-      - name: Запушить Docker-образы
+      - name: Create release branch
         run: |
-          docker push cr.yandex/$REGISTRY_ID/app:$VERSION
-          docker push cr.yandex/$REGISTRY_ID/app:${VERSION}_latest
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -b releases/${VERSION}
+          git push origin releases/${VERSION}
 
-      - name: Найти предыдущий релизный тег
-        id: prev_tag
+      - name: Install jq & YC-CLI
         run: |
-          PREV=$(git tag --list "v*" --sort=-creatordate | sed -n '2p')
-          echo "PREV_TAG=$PREV" >> $GITHUB_OUTPUT
+          sudo apt-get update
+          sudo apt-get install -y jq
+          curl https://storage.yandexcloud.net/yandexcloud-yc/install.sh | bash
+          export PATH="$HOME/.local/bin:$PATH"
 
-      - name: Сформировать список коммитов
-        id: commits
+      - name: Configure Yandex.Cloud CLI
         run: |
-          git fetch --tags
-          PREV="${{ steps.prev_tag.outputs.PREV_TAG }}"
-          git log $PREV..HEAD --pretty=format:'- %s' > commits.txt
-          echo "COMMITS<<EOF" >> $GITHUB_OUTPUT
-          cat commits.txt >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+          echo "${{ secrets.YC_SERVICE_KEY }}" > key.json
+          CLOUD_ID=$(jq -r .cloud_id key.json)
+          FOLDER_ID=$(jq -r .folder_id key.json)
+          yc init --service-account-key-file key.json \
+                  --cloud-id "$CLOUD_ID" \
+                  --folder-id "$FOLDER_ID" \
+                  --no-interactive
 
-      - name: Создать Git-тег
+      - name: Docker login
         run: |
-          git tag -a v$VERSION -m "Release v$VERSION"
-          git push origin v$VERSION
+          TOKEN=$(yc iam create-token)
+          echo "$TOKEN" | docker login cr.yandex -u oauth --password-stdin
 
-      - name: Обновить CHANGELOG.md
+      - name: Build & Push Docker images
         run: |
-          TODAY=$(date -u +"%Y-%m-%d")
-          {
-            echo "## v$VERSION — $TODAY"
-            echo
-            echo "${{ steps.commits.outputs.COMMITS }}"
-            echo
+          docker build -t cr.yandex/${REGISTRY_ID}/app:${VERSION} .
+          docker tag cr.yandex/${REGISTRY_ID}/app:${VERSION} \
+                     cr.yandex/${REGISTRY_ID}/app:${VERSION}_latest
+          docker push cr.yandex/${REGISTRY_ID}/app:${VERSION}
+          docker push cr.yandex/${REGISTRY_ID}/app:${VERSION}_latest
+
+      - name: Create git tag
+        run: |
+          git tag -a "${VERSION}" -m "Release ${VERSION}"
+          git push origin "${VERSION}"
+
+      - name: Update CHANGELOG.md
+        run: |
+          DATE=$(date -u +"%Y-%m-%d")
+          { 
+            echo "## ${VERSION} - ${DATE}"
+            echo ""
+            echo "${COMMITS}"
+            echo ""
             cat CHANGELOG.md
-          } > CHANGELOG.md
+          } > CHANGELOG.tmp
+          mv CHANGELOG.tmp CHANGELOG.md
           git add CHANGELOG.md
-          git commit -m "chore: update CHANGELOG for v$VERSION"
-          git push origin releases/$VERSION
+          git commit -m "chore: update CHANGELOG for release ${VERSION}"
+          git push origin releases/${VERSION}
 
-      - name: Создать GitHub Issue с деталями релиза
+      - name: Create Release Issue
         uses: actions/github-script@v6
-        env:
-          VERSION: ${{ env.VERSION }}
-          REGISTRY_ID: ${{ env.REGISTRY_ID }}
-          COMMITS: ${{ steps.commits.outputs.COMMITS }}
         with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const date = new Date().toISOString().split('T')[0];
-            const body = `**Release Date:** ${date}
-            **Author:** @${context.actor}
-            **Version:** v${process.env.VERSION}
+            const version  = process.env.VERSION;
+            const date     = new Date().toISOString().split('T')[0];
+            const author   = context.actor;
+            const prevTag  = process.env.PREV_TAG;
+            const commits  = process.env.COMMITS;
+            const registry = process.env.REGISTRY_ID;
+            const image    = `cr.yandex/${registry}/app:${version}`;
 
-            **Commits:**
-            ${process.env.COMMITS}
-
-            **Docker Image:**
-            cr.yandex/${process.env.REGISTRY_ID}/app:${process.env.VERSION}
-            `;
             await github.issues.create({
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            title: `Release v${process.env.VERSION}`,
-            body: body,
+              owner: context.repo.owner,
+              repo:  context.repo.repo,
+              title: `Release ${version} deployed`,
+              body: `**Date:** ${date}
+              **Author:** @${author}
+              **Version:** ${version}
+  
+            **Commits since ${prevTag}:**
+            ${commits}
+  
+            **Docker image:** ${image}`
             });
