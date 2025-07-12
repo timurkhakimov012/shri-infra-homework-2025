@@ -47,11 +47,7 @@ jobs:
           git checkout -b releases/${VERSION}
           git push origin releases/${VERSION}
 
-      - name: Docker login
-        run: |
-         
-          TOKEN=$(yc iam create-token)
-          echo "$TOKEN" | docker login cr.yandex -u oauth --password-stdin
+     
       
 
       - name: Build & Push Docker images
