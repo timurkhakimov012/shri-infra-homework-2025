@@ -65,27 +65,24 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y jq
           curl https://storage.yandexcloud.net/yandexcloud-yc/install.sh | bash
-        
-        
-          export PATH="$HOME/.local/bin:$PATH"
-        
-       
+
+          # Предполагаем, что install.sh положил yc в ~/.local/bin
+          YC_BIN="$HOME/.local/bin/yc"
+
+          # Проверим
+          $YC_BIN --version
+
+          # Конфигурируем
           cat << 'EOF' > key.json
           ${{ secrets.YC_SERVICE_KEY }}
           EOF
-  
-  
           CLOUD_ID=$(jq -r .cloud_id key.json)
           FOLDER_ID=$(jq -r .folder_id key.json)
-  
-  
-          yc init --service-account-key-file=key.json \
+      
+          $YC_BIN init --service-account-key-file=key.json \
           --cloud-id="$CLOUD_ID" \
           --folder-id="$FOLDER_ID" \
           --no-interactive
-  
- 
-          yc --version
 
       - name: Docker login
         run: |
