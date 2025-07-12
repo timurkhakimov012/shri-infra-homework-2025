@@ -52,6 +52,7 @@ jobs:
 
       - name: Build & Push Docker images
         run: |
+          echo $REGISTRY_ID
           docker build -t ${REGISTRY_ID}/app:${VERSION} .
           docker tag ${REGISTRY_ID}/app:${VERSION} \
                      ${REGISTRY_ID}/app:${VERSION}_latest
