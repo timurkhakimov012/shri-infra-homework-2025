@@ -49,13 +49,9 @@ jobs:
 
       - name: Docker login
         run: |
-          ZONE=$(yc config get compute-default-zone)
-          REGION=${ZONE%-*}
-          ENDPOINT=cr.${REGION}.yandex
-          
-          echo "Using registry host: $ENDPOINT"
+         
           TOKEN=$(yc iam create-token)
-          echo "$TOKEN" | docker login "$ENDPOINT" -u oauth --password-stdin
+          echo "$TOKEN" | docker login cr.yandex -u oauth --password-stdin
       
 
       - name: Build & Push Docker images
