@@ -82,12 +82,19 @@ jobs:
 
       - name: Build & Push Docker images
         run: |
-          echo $REGISTRY_ID
-          docker build -t ${REGISTRY_ID}/app:${VERSION} .
-          docker tag ${REGISTRY_ID}/app:${VERSION} \
-                     ${REGISTRY_ID}/app:${VERSION}_latest
-          docker push ${REGISTRY_ID}/app:${VERSION}
-          docker push ${REGISTRY_ID}/app:${VERSION}_latest
+            HOST=${REGISTRY_HOST}
+            ID=${REGISTRY_ID}
+            IMG=${HOST}/${ID}/app:${VERSION}
+            IMG_L=${HOST}/${ID}/app:${VERSION}_latest
+            
+            # Тест, что helper работает:
+            printf "https://${HOST}" | docker-credential-yc get
+            
+            docker build -t "$IMG" .
+            docker tag   "$IMG" "$IMG_L"
+            docker push  "$IMG"
+            docker push  "$IMG_L"
+      
 
       - name: Create git tag
         run: |
