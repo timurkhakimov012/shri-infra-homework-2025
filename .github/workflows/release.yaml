@@ -67,7 +67,7 @@ jobs:
           export PATH="$HOME/.local/bin:$PATH"
 
       - name: Configure Yandex.Cloud CLI
-        shell: bash
+
         run: |
           # Записываем секрет в key.json, не разбивая на строки- команды
           cat << 'EOF' > key.json
