@@ -5,27 +5,20 @@ on:
 
 jobs:
   lint-and-test:
-    name: 🧹 Lint & Test
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, my-vm]
     steps:
       - uses: actions/checkout@v3
-      - name: Install dependencies
-        run: npm ci
-      - name: Lint
-        run: npm run lint
-      - name: Test
-        run: npm test
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test
 
   release:
-    name: 🚀 Release
     needs: lint-and-test
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, my-vm]
     env:
-      REGISTRY_ID: ${{ secrets.REGISTRY_ID }}
       VERSION: ${{ github.run_number }}
     steps:
-      - name: Checkout full history
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v3
         with:
           fetch-depth: 0
 
@@ -35,19 +28,14 @@ jobs:
       - name: Determine previous tag & commits
         id: prev
         run: |
-         
           if git tag | grep . >/dev/null; then
             PREV_TAG=$(git describe --tags --abbrev=0)
             COMMITS=$(git log ${PREV_TAG}..HEAD --pretty=format:'- %s')
           else
-            echo "No tags found → first release"
             PREV_TAG=""
-            
             COMMITS=$(git log --pretty=format:'- %s')
           fi
-
           echo "PREV_TAG=$PREV_TAG" >> $GITHUB_ENV
-         
           echo "COMMITS<<EOF" >> $GITHUB_ENV
           echo "$COMMITS"      >> $GITHUB_ENV
           echo "EOF"           >> $GITHUB_ENV
@@ -59,31 +47,6 @@ jobs:
           git checkout -b releases/${VERSION}
           git push origin releases/${VERSION}
 
-      - name: Setup and configure Yandex.Cloud CLI
-        shell: bash
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y jq
-          curl https://storage.yandexcloud.net/yandexcloud-yc/install.sh | bash
-
-          # Предполагаем, что install.sh положил yc в ~/.local/bin
-          YC_BIN="$HOME/.local/bin/yc"
-
-          # Проверим
-          $YC_BIN --version
-
-          # Конфигурируем
-          cat << 'EOF' > key.json
-          ${{ secrets.YC_SERVICE_KEY }}
-          EOF
-          CLOUD_ID=$(jq -r .cloud_id key.json)
-          FOLDER_ID=$(jq -r .folder_id key.json)
-      
-          $YC_BIN init --service-account-key-file=key.json \
-          --cloud-id="$CLOUD_ID" \
-          --folder-id="$FOLDER_ID" \
-          --no-interactive
-
       - name: Docker login
         run: |
           TOKEN=$(yc iam create-token)
@@ -91,11 +54,11 @@ jobs:
 
       - name: Build & Push Docker images
         run: |
-          docker build -t cr.yandex/${REGISTRY_ID}/app:${VERSION} .
-          docker tag cr.yandex/${REGISTRY_ID}/app:${VERSION} \
-                     cr.yandex/${REGISTRY_ID}/app:${VERSION}_latest
-          docker push cr.yandex/${REGISTRY_ID}/app:${VERSION}
-          docker push cr.yandex/${REGISTRY_ID}/app:${VERSION}_latest
+          docker build -t ${REGISTRY_ID}/app:${VERSION} .
+          docker tag ${REGISTRY_ID}/app:${VERSION} \
+                     ${REGISTRY_ID}/app:${VERSION}_latest
+          docker push ${REGISTRY_ID}/app:${VERSION}
+          docker push ${REGISTRY_ID}/app:${VERSION}_latest
 
       - name: Create git tag
         run: |
@@ -105,13 +68,8 @@ jobs:
       - name: Update CHANGELOG.md
         run: |
           DATE=$(date -u +"%Y-%m-%d")
-          { 
-            echo "## ${VERSION} - ${DATE}"
-            echo ""
-            echo "${COMMITS}"
-            echo ""
-            cat CHANGELOG.md
-          } > CHANGELOG.tmp
+          { echo "## ${VERSION} - ${DATE}"; echo ""; echo "${COMMITS}"; echo ""; cat CHANGELOG.md; } \
+            > CHANGELOG.tmp
           mv CHANGELOG.tmp CHANGELOG.md
           git add CHANGELOG.md
           git commit -m "chore: update CHANGELOG for release ${VERSION}"
@@ -122,13 +80,12 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const version  = process.env.VERSION;
-            const date     = new Date().toISOString().split('T')[0];
-            const author   = context.actor;
-            const prevTag  = process.env.PREV_TAG;
-            const commits  = process.env.COMMITS;
-            const registry = process.env.REGISTRY_ID;
-            const image    = `cr.yandex/${registry}/app:${version}`;
+            const version = process.env.VERSION;
+            const date    = new Date().toISOString().split('T')[0];
+            const author  = context.actor;
+            const prev    = process.env.PREV_TAG;
+            const commits = process.env.COMMITS;
+            const image   = `cr.yandex/${process.env.REGISTRY_ID}/app:${version}`;
 
             await github.issues.create({
               owner: context.repo.owner,
@@ -138,8 +95,8 @@ jobs:
               **Author:** @${author}
               **Version:** ${version}
   
-            **Commits since ${prevTag}:**
-            ${commits}
+              **Commits since ${prev || 'start'}:**
+              ${commits}
   
-            **Docker image:** ${image}`
-            });
+              **Docker image:** ${image}`
+              });
