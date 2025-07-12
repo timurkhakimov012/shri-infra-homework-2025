@@ -33,11 +33,21 @@ jobs:
         run: git fetch --tags
 
       - name: Determine previous tag & commits
+        id: prev
         run: |
-          PREV_TAG=$(git describe --tags --abbrev=0)
-          echo "PREV_TAG=$PREV_TAG" >> $GITHUB_ENV
+          # Проверим, есть ли вообще теги
+          if git tag | grep . >/dev/null; then
+            PREV_TAG=$(git describe --tags --abbrev=0)
+            COMMITS=$(git log ${PREV_TAG}..HEAD --pretty=format:'- %s')
+          else
+            echo "No tags found → first release"
+            PREV_TAG=""
+            # Можно вывести все коммиты, либо только последний:
+            COMMITS=$(git log --pretty=format:'- %s')
+          fi
 
-          COMMITS=$(git log $PREV_TAG..HEAD --pretty=format:'- %s')
+          echo "PREV_TAG=$PREV_TAG" >> $GITHUB_ENV
+          # Сохраним в переменную с многострочным значением
           echo "COMMITS<<EOF" >> $GITHUB_ENV
           echo "$COMMITS"      >> $GITHUB_ENV
           echo "EOF"           >> $GITHUB_ENV
