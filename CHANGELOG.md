@@ -1,3 +1,9 @@
+## 52 - 2025-07-13
+
+- third
+- second
+- first
+
 ## 51 - 2025-07-13
 
 - f tags & determine
