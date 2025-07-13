@@ -50,11 +50,7 @@ jobs:
 
       
           OLD=$(cat CHANGELOG.md)
-        
-        
           cat <<EOF > CHANGELOG.md
-
-  
           ${COMMITS}
   
           ${OLD}
