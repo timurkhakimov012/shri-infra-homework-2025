@@ -1,3 +1,8 @@
+## 57 - 2025-07-13
+
+- store v2
+- chore: update CHANGELOG for release 56
+
 ## 56 - 2025-07-13
 
 - d
