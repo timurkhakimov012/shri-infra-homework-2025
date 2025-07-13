@@ -41,6 +41,7 @@ jobs:
           echo "EOF"           >> $GITHUB_ENV
 
       - name: Update CHANGELOG.md in main
+        shell: bash
         run: |
             # Переключаемся на main и подтягиваем последний коммит
             git checkout main
