@@ -41,41 +41,44 @@ jobs:
           echo "EOF"           >> $GITHUB_ENV
 
       - name: Update CHANGELOG.md in main
+
         shell: bash
         run: |
-           
-            git checkout main
-            git pull --ff-only origin main
-            
-           
-            DATE=$(date -u +"%Y-%m-%d")
-           
-            echo "Updating changelog for version ${VERSION} on ${DATE}"
-            
-           
-            if [ ! -f CHANGELOG.md ] || ! grep -q '^# Changelog' CHANGELOG.md; then
-              cat <<EOF > CHANGELOG.md
-      
-            EOF
-            fi
-            {
-            echo "## ${ VERSION } - ${ DATE }"
-                  echo ""
-                  echo "${ COMMITS }"
-                  echo ""
-                  cat CHANGELOG.md
-                } > CHANGELOG.tmp
-                mv CHANGELOG.tmp CHANGELOG.md
-                git config user.name  "github-actions[ bot ]"
-                git config user.email "github-actions[ bot ]@users.noreply.github.com"
-                                  git add CHANGELOG.md
         
-                                  if ! git diff --cached --exit-code; then
-                                  git commit -m "chore: update CHANGELOG for release ${ VERSION }"
-                  git push origin main
-                else
-                  echo "No changes in CHANGELOG.md, skipping commit"
-              fi
+          git checkout main
+          git pull --ff-only origin main
+
+        
+          DATE=$(date -u +"%Y-%m-%d")
+          echo "Updating changelog for version ${VERSION} on ${DATE}"
+
+         
+          if [ ! -f CHANGELOG.md ] || ! grep -q '^# Changelog' CHANGELOG.md; then
+            printf "# Changelog\n\n" > CHANGELOG.md
+          fi
+
+        
+          {
+            echo "## ${VERSION} - ${DATE}"
+            echo
+            echo "${COMMITS}"
+            echo
+            cat CHANGELOG.md
+          } > CHANGELOG.tmp
+
+          mv CHANGELOG.tmp CHANGELOG.md
+
+        
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add CHANGELOG.md
+
+          if ! git diff --cached --exit-code; then
+            git commit -m "chore: update CHANGELOG for release ${VERSION}"
+            git push origin main
+          else
+            echo "No changes in CHANGELOG.md, skipping commit"
+          fi
 
       - name: Create release branch
         run: |
