@@ -65,7 +65,6 @@ jobs:
             echo
             cat CHANGELOG.md
           } > CHANGELOG.tmp
-
           mv CHANGELOG.tmp CHANGELOG.md
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
