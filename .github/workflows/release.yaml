@@ -62,6 +62,7 @@ jobs:
           git push origin "${VERSION}"
 
 
+
       - name: Update CHANGELOG.md in main
         shell: bash
         run: |
