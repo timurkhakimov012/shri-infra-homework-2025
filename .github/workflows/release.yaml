@@ -74,7 +74,6 @@ jobs:
           else
             echo "No changes in CHANGELOG.md, skipping commit"
           fi
-
       - name: Create release branch
         run: |
           git checkout main
