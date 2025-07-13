@@ -71,6 +71,32 @@ jobs:
           else
             echo "No changes in CHANGELOG.md, skipping commit"
           fi
+          
+          - name: Create Release Issue
+            uses: actions/github-script@v6
+            with:
+              github-token: ${{ secrets.GITHUB_TOKEN }}
+              script: |
+                const version = process.env.VERSION;
+                const date    = new Date().toISOString().split('T')[0];
+                const author  = context.actor;
+                const prev    = process.env.PREV_TAG;
+                const commits = process.env.COMMITS;
+                const image   = `cr.yandex/${process.env.REGISTRY_ID}/app:${version}`;
+
+                await github.rest.issues.create({
+                  owner: context.repo.owner,
+                  repo:  context.repo.repo,
+                  title: `Release ${version} deployed`,
+                  body: `**Date:** ${date}
+                  **Author:** @${author}
+                  **Version:** ${version}
+
+                  **Commits since ${prev || 'start'}:**
+                  ${commits}
+
+                  **Docker image:** ${image}`
+                  });
       - name: Create release branch
         run: |
           git checkout main
@@ -94,28 +120,4 @@ jobs:
         run: |
           git tag -a "${VERSION}" -m "Release ${VERSION}"
           git push origin "${VERSION}"
-      - name: Create Release Issue
-        uses: actions/github-script@v6
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const version = process.env.VERSION;
-            const date    = new Date().toISOString().split('T')[0];
-            const author  = context.actor;
-            const prev    = process.env.PREV_TAG;
-            const commits = process.env.COMMITS;
-            const image   = `cr.yandex/${process.env.REGISTRY_ID}/app:${version}`;
-
-            await github.rest.issues.create({
-              owner: context.repo.owner,
-              repo:  context.repo.repo,
-              title: `Release ${version} deployed`,
-              body: `**Date:** ${date}
-              **Author:** @${author}
-              **Version:** ${version}
-  
-              **Commits since ${prev || 'start'}:**
-              ${commits}
-  
-              **Docker image:** ${image}`
-              });
+    
