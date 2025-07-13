@@ -42,21 +42,39 @@ jobs:
 
       - name: Update CHANGELOG.md in main
         run: |
-          git checkout main
-          git pull origin main
+            # Переключаемся на main и подтягиваем последний коммит
+            git checkout main
+            git pull --ff-only origin main
+            
+            # Подготовка данных
+            DATE=$(date -u +"%Y-%m-%d")
+            # VERSION уже задан в env
+            echo "Updating changelog for version ${VERSION} on ${DATE}"
+            
+            # Если файла ещё нет или нет заголовка, создаём базовую шапку
+            if [ ! -f CHANGELOG.md ] || ! grep -q '^# Changelog' CHANGELOG.md; then
+              cat <<EOF > CHANGELOG.md
+      
+            EOF
+            fi
+            {
+            echo "## ${ VERSION } - ${ DATE }"
+                  echo ""
+                  echo "${ COMMITS }"
+                  echo ""
+                  cat CHANGELOG.md
+                } > CHANGELOG.tmp
+                mv CHANGELOG.tmp CHANGELOG.md
+                git config user.name  "github-actions[ bot ]"
+                git config user.email "github-actions[ bot ]@users.noreply.github.com"
+                                  git add CHANGELOG.md
         
-          DATE=$(date -u +"%Y-%m-%d")
-          VERSION=${VERSION}
-          OLD=$(cat CHANGELOG.md)
-          cat <<EOF > CHANGELOG.md
-          ${COMMITS}
-          ${OLD}
-          EOF
-          git config user.name  "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add CHANGELOG.md
-          git commit -m "chore: update CHANGELOG for release ${VERSION}"
-          git push origin main
+                                  if ! git diff --cached --exit-code; then
+                                  git commit -m "chore: update CHANGELOG for release ${ VERSION }"
+                  git push origin main
+                else
+                  echo "No changes in CHANGELOG.md, skipping commit"
+              fi
 
       - name: Create release branch
         run: |
