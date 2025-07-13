@@ -14,6 +14,7 @@ export const CartBadge: React.FC<CartBadgeProps> = ({ id }) => {
 
     return <>
         <div>1</div>
+        <div>2</div>
         cart[id] ? <span className={bem(null, ['text-success', 'mx-3'])}>Item in cart</span> : null;
     </>
 }
