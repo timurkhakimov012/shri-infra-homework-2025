@@ -25,29 +25,32 @@ jobs:
       - name: Fetch tags
         run: git fetch --tags
 
-      - name: Determine previous tag & commits
-        id: prev
+      - name: Fetch tags & determine commits
+        id: get_commits
         run: |
-        
+          # 1) Подтягиваем все теги
           git fetch --tags
 
-          LAST_TAG=$(git tag --list --sort=-v:refname 'releases/*' | head -n1)
-    
-          if [ -n "$LAST_TAG" ]; then
-          COMMITS=$(git log ${LAST_TAG}..HEAD --pretty=format:'- %h %s')
+          PREV_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          
+          if [ -n "$PREV_TAG" ]; then
+          echo "Previous tag: $PREV_TAG"
+         
+          COMMITS=$(git log ${PREV_TAG}..HEAD --pretty=format:'- %s')
           else
-          LAST_TAG="(initial)"
-          COMMITS=$(git log --pretty=format:'- %h %s')
+          echo "No tags found, taking all commits"
+         
+          COMMITS=$(git log --pretty=format:'- %s' -n 10)
           fi
-    
-          echo "PREV_TAG=$LAST_TAG" >> $GITHUB_ENV
-  
-          echo "COMMITS<<EOF" >> $GITHUB_ENV
-          echo "$COMMITS"        >> $GITHUB_ENV
-          echo "EOF"             >> $GITHUB_ENV
+      
+          echo "PREV_TAG=${PREV_TAG}" >> $GITHUB_ENV
+          echo "COMMITS<<EOF"         >> $GITHUB_ENV
+          echo "${COMMITS}"           >> $GITHUB_ENV
+          echo "EOF"                  >> $GITHUB_ENV
+
+
 
       - name: Update CHANGELOG.md in main
-
         shell: bash
         run: |
         
@@ -83,6 +86,8 @@ jobs:
           else
             echo "No changes in CHANGELOG.md, skipping commit"
           fi
+
+
 
       - name: Create Release Issue
         uses: actions/github-script@v6
