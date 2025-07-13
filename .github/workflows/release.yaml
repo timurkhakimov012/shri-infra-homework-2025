@@ -28,17 +28,23 @@ jobs:
       - name: Determine previous tag & commits
         id: prev
         run: |
-          if git tag | grep . >/dev/null; then
-            PREV_TAG=$(git describe --tags --abbrev=0)
-            COMMITS=$(git log ${PREV_TAG}..HEAD --pretty=format:'- %s')
+        
+          git fetch --tags
+    
+          LAST_TAG=$(git tag --list --sort=-v:refname 'releases/*' | head -n1)
+    
+          if [ -n "$LAST_TAG" ]; then
+          COMMITS=$(git log ${LAST_TAG}..HEAD --pretty=format:'- %h %s')
           else
-            PREV_TAG=""
-            COMMITS=$(git log --pretty=format:'- %s')
+          LAST_TAG="(initial)"
+          COMMITS=$(git log --pretty=format:'- %h %s')
           fi
-          echo "PREV_TAG=$PREV_TAG" >> $GITHUB_ENV
+    
+          echo "PREV_TAG=$LAST_TAG" >> $GITHUB_ENV
+  
           echo "COMMITS<<EOF" >> $GITHUB_ENV
-          echo "$COMMITS"      >> $GITHUB_ENV
-          echo "EOF"           >> $GITHUB_ENV
+          echo "$COMMITS"        >> $GITHUB_ENV
+          echo "EOF"             >> $GITHUB_ENV
 
       - name: Update CHANGELOG.md in main
 
@@ -83,26 +89,32 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const version = process.env.VERSION;
-            const date    = new Date().toISOString().split('T')[0];
-            const author  = context.actor;
-            const prev    = process.env.PREV_TAG;
-            const commits = process.env.COMMITS;
-            const image   = `cr.yandex/${process.env.REGISTRY_ID}/app:${version}`;
-
+            const version  = process.env.VERSION;
+            const date     = new Date().toISOString().split('T')[0];
+            const author   = context.actor;
+            const prevTag  = process.env.PREV_TAG;
+            const commits  = process.env.COMMITS || '*No new commits*';
+            const host     = process.env.REGISTRY_HOST;
+            const id       = process.env.REGISTRY_ID;
+            const imageUrl = `https://${host}/${id}/app:${version}`;
+          
+            const body = `
+              **Date:** ${date}
+              **Author:** @${author}
+              **Version:** ${version}
+              
+              **Commits since \`${prevTag}\`:**
+              ${commits}
+              
+              **Docker image:** ${imageUrl}
+              `.trim();
+            
             await github.rest.issues.create({
               owner: context.repo.owner,
               repo:  context.repo.repo,
               title: `Release ${version} deployed`,
-              body: `**Date:** ${date}
-              **Author:** @${author}
-              **Version:** ${version}
-            
-              **Commits since ${prev || 'start'}:**
-              ${commits}
-            
-              **Docker image:** ${image}`
-              });
+              body
+            });
 
 
       - name: Create release branch
