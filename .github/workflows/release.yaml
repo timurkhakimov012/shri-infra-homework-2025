@@ -60,13 +60,11 @@ jobs:
           git commit -m "chore: update CHANGELOG for release ${VERSION}"
           git push origin main
 
-
       - name: Create release branch
         run: |
           git checkout main
           git checkout -b releases/${VERSION}
           git push origin releases/${VERSION}
-      
 
       - name: Build & Push Docker images
         run: |
@@ -89,7 +87,6 @@ jobs:
           git tag -a "${VERSION}" -m "Release ${VERSION}"
           git push origin "${VERSION}"
 
-      
 
       - name: Create Release Issue
         uses: actions/github-script@v6
