@@ -43,16 +43,16 @@ jobs:
       - name: Update CHANGELOG.md in main
         shell: bash
         run: |
-            # Переключаемся на main и подтягиваем последний коммит
+           
             git checkout main
             git pull --ff-only origin main
             
-            # Подготовка данных
+           
             DATE=$(date -u +"%Y-%m-%d")
-            # VERSION уже задан в env
+           
             echo "Updating changelog for version ${VERSION} on ${DATE}"
             
-            # Если файла ещё нет или нет заголовка, создаём базовую шапку
+           
             if [ ! -f CHANGELOG.md ] || ! grep -q '^# Changelog' CHANGELOG.md; then
               cat <<EOF > CHANGELOG.md
       
