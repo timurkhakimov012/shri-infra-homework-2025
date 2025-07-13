@@ -82,20 +82,20 @@ jobs:
           git checkout -b releases/${VERSION}
           git push origin releases/${VERSION}
 
-      - name: Build & Push Docker images
-        run: |
-            HOST=${REGISTRY_HOST}
-            ID=${REGISTRY_ID}
-            IMG=${HOST}/${ID}/app:${VERSION}
-            IMG_L=${HOST}/${ID}/app:${VERSION}_latest
-
-            # Тест, что helper работает:
-            printf "https://${HOST}" | docker-credential-yc get
-
-            docker build -t "$IMG" .
-            docker tag   "$IMG" "$IMG_L"
-            docker push  "$IMG"
-            docker push  "$IMG_L"
+#      - name: Build & Push Docker images
+#        run: |
+#            HOST=${REGISTRY_HOST}
+#            ID=${REGISTRY_ID}
+#            IMG=${HOST}/${ID}/app:${VERSION}
+#            IMG_L=${HOST}/${ID}/app:${VERSION}_latest
+#
+#            # Тест, что helper работает:
+#            printf "https://${HOST}" | docker-credential-yc get
+#
+#            docker build -t "$IMG" .
+#            docker tag   "$IMG" "$IMG_L"
+#            docker push  "$IMG"
+#            docker push  "$IMG_L"
       - name: Create git tag
         run: |
           git tag -a "${VERSION}" -m "Release ${VERSION}"
