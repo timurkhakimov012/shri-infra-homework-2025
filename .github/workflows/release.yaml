@@ -78,7 +78,6 @@ jobs:
             echo "No changes in CHANGELOG.md, skipping commit"
           fi
 
-
       - name: Create Release Issue
         uses: actions/github-script@v6
         with:
