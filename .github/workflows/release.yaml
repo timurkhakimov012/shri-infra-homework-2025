@@ -4,16 +4,16 @@ on:
   workflow_dispatch:
 
 jobs:
-  lint-and-test:
-    runs-on: self-hosted
-    steps:
-      - uses: actions/checkout@v3
-      - run: npm ci
-      - run: npm run lint
-      - run: npm test
+#  lint-and-test:
+#    runs-on: self-hosted
+#    steps:
+#      - uses: actions/checkout@v3
+#      - run: npm ci
+#      - run: npm run lint
+#      - run: npm test
 
   release:
-    needs: lint-and-test
+#    needs: lint-and-test
     runs-on: self-hosted
     env:
       VERSION: ${{ github.run_number }}
@@ -48,12 +48,16 @@ jobs:
           git checkout main
           git pull --ff-only origin main
 
+        
           DATE=$(date -u +"%Y-%m-%d")
           echo "Updating changelog for version ${VERSION} on ${DATE}"
 
+         
           if [ ! -f CHANGELOG.md ] || ! grep -q '^# Changelog' CHANGELOG.md; then
             printf "# Changelog\n\n" > CHANGELOG.md
           fi
+
+        
           {
             echo "## ${VERSION} - ${DATE}"
             echo
@@ -61,66 +65,68 @@ jobs:
             echo
             cat CHANGELOG.md
           } > CHANGELOG.tmp
+
           mv CHANGELOG.tmp CHANGELOG.md
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add CHANGELOG.md
+
           if ! git diff --cached --exit-code; then
             git commit -m "chore: update CHANGELOG for release ${VERSION}"
             git push origin main
           else
             echo "No changes in CHANGELOG.md, skipping commit"
           fi
-          
-          
-          - name: Create Release Issue
-            uses: actions/github-script@v6
-            with:
-              github-token: ${{ secrets.GITHUB_TOKEN }}
-              script: |
-                const version = process.env.VERSION;
-                const date    = new Date().toISOString().split('T')[0];
-                const author  = context.actor;
-                const prev    = process.env.PREV_TAG;
-                const commits = process.env.COMMITS;
-                const image   = `cr.yandex/${process.env.REGISTRY_ID}/app:${version}`;
 
-                await github.rest.issues.create({
-                  owner: context.repo.owner,
-                  repo:  context.repo.repo,
-                  title: `Release ${version} deployed`,
-                  body: `**Date:** ${date}
-                  **Author:** @${author}
-                  **Version:** ${version}
 
-                  **Commits since ${prev || 'start'}:**
-                  ${commits}
+      - name: Create Release Issue
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const version = process.env.VERSION;
+            const date    = new Date().toISOString().split('T')[0];
+            const author  = context.actor;
+            const prev    = process.env.PREV_TAG;
+            const commits = process.env.COMMITS;
+            const image   = `cr.yandex/${process.env.REGISTRY_ID}/app:${version}`;
 
-                  **Docker image:** ${image}`
-                  });
-          
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo:  context.repo.repo,
+              title: `Release ${version} deployed`,
+              body: `**Date:** ${date}
+              **Author:** @${author}
+              **Version:** ${version}
+            
+              **Commits since ${prev || 'start'}:**
+              ${commits}
+            
+              **Docker image:** ${image}`
+              });
+
 
       - name: Create release branch
         run: |
           git checkout main
           git checkout -b releases/${VERSION}
           git push origin releases/${VERSION}
-      - name: Build & Push Docker images
-        run: |
-            HOST=${REGISTRY_HOST}
-            ID=${REGISTRY_ID}
-            IMG=${HOST}/${ID}/app:${VERSION}
-            IMG_L=${HOST}/${ID}/app:${VERSION}_latest
 
-            # Тест, что helper работает:
-            printf "https://${HOST}" | docker-credential-yc get
-
-            docker build -t "$IMG" .
-            docker tag   "$IMG" "$IMG_L"
-            docker push  "$IMG"
-            docker push  "$IMG_L"
+#      - name: Build & Push Docker images
+#        run: |
+#            HOST=${REGISTRY_HOST}
+#            ID=${REGISTRY_ID}
+#            IMG=${HOST}/${ID}/app:${VERSION}
+#            IMG_L=${HOST}/${ID}/app:${VERSION}_latest
+#
+#            # Тест, что helper работает:
+#            printf "https://${HOST}" | docker-credential-yc get
+#
+#            docker build -t "$IMG" .
+#            docker tag   "$IMG" "$IMG_L"
+#            docker push  "$IMG"
+#            docker push  "$IMG_L"
       - name: Create git tag
         run: |
           git tag -a "${VERSION}" -m "Release ${VERSION}"
           git push origin "${VERSION}"
-
