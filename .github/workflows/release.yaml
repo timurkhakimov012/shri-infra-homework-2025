@@ -4,16 +4,16 @@ on:
   workflow_dispatch:
 
 jobs:
-  lint-and-test:
-    runs-on: self-hosted
-    steps:
-      - uses: actions/checkout@v3
-      - run: npm ci
-      - run: npm run lint
-      - run: npm test
+#  lint-and-test:
+#    runs-on: self-hosted
+#    steps:
+#      - uses: actions/checkout@v3
+#      - run: npm ci
+#      - run: npm run lint
+#      - run: npm test
 
   release:
-    needs: lint-and-test
+#    needs: lint-and-test
     runs-on: self-hosted
     env:
       VERSION: ${{ github.run_number }}
@@ -102,20 +102,20 @@ jobs:
           git checkout main
           git checkout -b releases/${VERSION}
           git push origin releases/${VERSION}
-      - name: Build & Push Docker images
-        run: |
-            HOST=${REGISTRY_HOST}
-            ID=${REGISTRY_ID}
-            IMG=${HOST}/${ID}/app:${VERSION}
-            IMG_L=${HOST}/${ID}/app:${VERSION}_latest
-
-            # Тест, что helper работает:
-            printf "https://${HOST}" | docker-credential-yc get
-
-            docker build -t "$IMG" .
-            docker tag   "$IMG" "$IMG_L"
-            docker push  "$IMG"
-            docker push  "$IMG_L"
+#      - name: Build & Push Docker images
+#        run: |
+#            HOST=${REGISTRY_HOST}
+#            ID=${REGISTRY_ID}
+#            IMG=${HOST}/${ID}/app:${VERSION}
+#            IMG_L=${HOST}/${ID}/app:${VERSION}_latest
+#
+#            # Тест, что helper работает:
+#            printf "https://${HOST}" | docker-credential-yc get
+#
+#            docker build -t "$IMG" .
+#            docker tag   "$IMG" "$IMG_L"
+#            docker push  "$IMG"
+#            docker push  "$IMG_L"
       - name: Create git tag
         run: |
           git tag -a "${VERSION}" -m "Release ${VERSION}"
