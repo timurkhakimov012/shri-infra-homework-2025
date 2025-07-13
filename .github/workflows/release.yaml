@@ -48,12 +48,12 @@ jobs:
           DATE=$(date -u +"%Y-%m-%d")
           VERSION=${VERSION}
 
-        # Вытаскиваем старое содержимое
+      
           OLD=$(cat CHANGELOG.md)
         
-        # Перезаписываем, дописывая сверху
+        
           cat <<EOF > CHANGELOG.md
-## ${VERSION} - ${DATE}
+
   
           ${COMMITS}
   
