@@ -30,7 +30,7 @@ jobs:
         run: |
         
           git fetch --tags
-    
+
           LAST_TAG=$(git tag --list --sort=-v:refname 'releases/*' | head -n1)
     
           if [ -n "$LAST_TAG" ]; then
