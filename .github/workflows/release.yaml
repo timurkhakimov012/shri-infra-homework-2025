@@ -40,10 +40,36 @@ jobs:
           echo "$COMMITS"      >> $GITHUB_ENV
           echo "EOF"           >> $GITHUB_ENV
 
-      - name: Create release branch
+      - name: Update CHANGELOG.md in main
         run: |
+          git checkout main
+          git pull origin main
+        
+          DATE=$(date -u +"%Y-%m-%d")
+          VERSION=${VERSION}
+
+        # Вытаскиваем старое содержимое
+          OLD=$(cat CHANGELOG.md)
+        
+        # Перезаписываем, дописывая сверху
+          cat <<EOF > CHANGELOG.md
+## ${VERSION} - ${DATE}
+  
+          ${COMMITS}
+  
+          ${OLD}
+          EOF
+  
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add CHANGELOG.md
+          git commit -m "chore: update CHANGELOG for release ${VERSION}"
+          git push origin main
+
+
+      - name: Create release branch
+        run: |
+          git checkout main
           git checkout -b releases/${VERSION}
           git push origin releases/${VERSION}
       
@@ -69,15 +95,7 @@ jobs:
           git tag -a "${VERSION}" -m "Release ${VERSION}"
           git push origin "${VERSION}"
 
-      - name: Update CHANGELOG.md
-        run: |
-          DATE=$(date -u +"%Y-%m-%d")
-          { echo "## ${VERSION} - ${DATE}"; echo ""; echo "${COMMITS}"; echo ""; cat CHANGELOG.md; } \
-            > CHANGELOG.tmp
-          mv CHANGELOG.tmp CHANGELOG.md
-          git add CHANGELOG.md
-          git commit -m "chore: update CHANGELOG for release ${VERSION}"
-          git push origin releases/${VERSION}
+      
 
       - name: Create Release Issue
         uses: actions/github-script@v6
