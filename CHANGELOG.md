@@ -1,3 +1,13 @@
+## 47 - 2025-07-13
+
+- d
+- chore: update CHANGELOG for release 46
+- chore: update CHANGELOG for release 45
+- d
+- chore: update CHANGELOG for release 45
+- second1
+- first1
+
 ## 46 - 2025-07-13
 
 - chore: update CHANGELOG for release 45
