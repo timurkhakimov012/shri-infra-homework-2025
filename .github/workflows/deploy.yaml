@@ -9,7 +9,7 @@ on:
 
 jobs:
   deploy:
-    runs-on: [self-hosted, linux, my-vm]
+    runs-on: self-hosted
     env:
       VERSION: ${{ github.event.inputs.version }}
 
