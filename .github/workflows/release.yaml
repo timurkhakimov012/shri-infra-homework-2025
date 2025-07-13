@@ -144,7 +144,16 @@ jobs:
 #            docker tag   "$IMG" "$IMG_L"
 #            docker push  "$IMG"
 #            docker push  "$IMG_L"
-      - name: Create git tag
+      - name: Create git tag on main
+        shell: bash
         run: |
-          git tag -a "${VERSION}" -m "Release ${VERSION}"
+          git fetch origin main
+          
+          SHA=$(git rev-parse origin/main)
+          echo "Tagging commit $SHA as ${VERSION}"
+          
+          git tag -a "${VERSION}" "$SHA" -m "Release ${VERSION}"
+          
           git push origin "${VERSION}"
+          
+          
