@@ -155,4 +155,3 @@ jobs:
           git tag -a "${VERSION}" "$SHA" -m "Release ${VERSION}"
           
           git push origin "${VERSION}"
-          
