@@ -1,0 +1,70 @@
+name: Deploy to Prod
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version to deploy (e.g. 1.0.0)'
+        required: true
+
+jobs:
+  deploy:
+    runs-on: [self-hosted, linux, my-vm]
+    env:
+      VERSION: ${{ github.event.inputs.version }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Deploy Docker image
+        run: |
+          IMAGE=${REGISTRY_HOST}/${REGISTRY_ID}/app:${VERSION}_latest
+          echo "Pulling $IMAGE"
+          docker pull "$IMAGE"
+
+          echo "Stopping old container"
+          docker stop shri-infra || true
+          docker rm   shri-infra || true
+
+          echo "Starting new container from $IMAGE"
+          docker run -d \
+            --name shri-infra \
+            -p 3000:3000 \
+            "$IMAGE"
+
+      - name: Comment on Release Issue
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const version = process.env.VERSION;
+            const date    = new Date().toISOString().split('T')[0];
+            const actor   = context.actor;
+            const host    = process.env.REGISTRY_HOST;
+            const id      = process.env.REGISTRY_ID;
+            const image   = `https://${host}/${id}/app:${version}_latest`;
+
+            
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo:  context.repo.repo,
+              state: 'open',
+            });
+            const issue = issues.find(i => i.title === `Release ${version} deployed`);
+            if (!issue) throw new Error(`Issue for release ${version} not found`);
+
+            const body = `
+            **Prod Deploy Date:** ${date}
+            **Deployed by:** @${actor}
+            **Version:** ${version}
+            
+            **Docker image:** ${image}
+            `.trim();
+  
+            await github.rest.issues.createComment({
+              owner:        context.repo.owner,
+              repo:         context.repo.repo,
+              issue_number: issue.number,
+              body,
+            });
