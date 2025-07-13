@@ -47,8 +47,6 @@ jobs:
         
           DATE=$(date -u +"%Y-%m-%d")
           VERSION=${VERSION}
-
-      
           OLD=$(cat CHANGELOG.md)
           cat <<EOF > CHANGELOG.md
           ${COMMITS}
