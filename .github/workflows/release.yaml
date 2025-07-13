@@ -46,38 +46,6 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git checkout -b releases/${VERSION}
           git push origin releases/${VERSION}
-
-
-      - name: Debug Yandex auth in CI
-        run: |
-          echo "=== USER & PATH ==="
-          whoami
-          echo $PATH
-
-          echo
-          echo "=== yc info ==="
-          which yc || echo "→ yc not in PATH"
-          yc --version || echo "→ yc --version failed"
-
-          echo
-          echo "=== Attempt to get IAM token ==="
-          TOKEN=$(yc iam create-token 2>&1) && echo "Token prefix: ${TOKEN:0:10}…" || echo "yc iam create-token failed: $TOKEN"
-
-          echo
-          echo "=== Docker config.json ==="
-          cat ~/.docker/config.json || echo "no docker config"
-
-          echo
-          echo "=== Credential helper test ==="
-          printf "https://cr.yandex" | docker-credential-yc get \
-            && echo "credential-yc get → OK" \
-            || echo "credential-yc get → FAILED"
-
-          echo
-          echo "=== env vars ==="
-          echo "REGISTRY_HOST=$REGISTRY_HOST"
-          echo "REGISTRY_ID=$REGISTRY_ID"
-
       
 
       - name: Build & Push Docker images
