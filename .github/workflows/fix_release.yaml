@@ -1,0 +1,122 @@
+name: Fix Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version to fix (e.g. 1.0.0)'
+        required: true
+
+jobs:
+  lint-and-test:
+    name: 🧹 Lint & Test
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v3
+      - run: npm ci
+      - run: npm run type-check
+      - run: npm test
+
+  fix-release:
+    name: 🚑 Fix Release
+    needs: lint-and-test
+    runs-on: self-hosted
+    env:
+      VERSION: ${{ github.event.inputs.version }}
+      FIX_NUM: ${{ github.run_number }}
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Checkout release branch
+        run: |
+          git fetch origin releases/${VERSION}
+          git checkout releases/${VERSION}
+
+      - name: Fetch tags & determine commits
+        id: prev
+        run: |
+          git fetch --tags
+
+         
+          if git tag --list "${VERSION}_fix*" | grep .; then
+            PREV_TAG=$(git tag --list "${VERSION}_fix*" --sort=-v:refname | head -n1)
+          else
+            PREV_TAG=${VERSION}
+          fi
+          echo "PREV_TAG=$PREV_TAG" >> $GITHUB_ENV
+
+         
+          COMMITS=$(git log ${PREV_TAG}..HEAD --pretty=format:'- %s')
+          echo "COMMITS<<EOF" >> $GITHUB_ENV
+          echo "$COMMITS"       >> $GITHUB_ENV
+          echo "EOF"            >> $GITHUB_ENV
+
+      - name: Build & Push Docker images
+        run: |
+          HOST=${REGISTRY_HOST}
+          ID=${REGISTRY_ID}
+          FIX_TAG=${VERSION}_fix${FIX_NUM}
+          IMG=${HOST}/${ID}/app:${FIX_TAG}
+          IMG_L=${HOST}/${ID}/app:${VERSION}_latest
+
+          echo "Building $IMG and tagging as latest"
+          docker build -t "$IMG" .
+          docker tag "$IMG" "$IMG_L"
+
+          echo "Pushing $IMG and $IMG_L"
+          docker push "$IMG"
+          docker push "$IMG_L"
+
+      - name: Create git tag for fix
+        run: |
+          TAG=${VERSION}_fix${FIX_NUM}
+          echo "Tagging $TAG on current commit"
+          git tag -a "$TAG" -m "Fix release ${VERSION} #${FIX_NUM}"
+          git push origin "$TAG"
+
+      - name: Comment on Release Issue
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const version = process.env.VERSION;
+            const fixNum  = process.env.FIX_NUM;
+            const prevTag = process.env.PREV_TAG;
+            const commits = process.env.COMMITS || '*No new commits*';
+            const date    = new Date().toISOString().split('T')[0];
+            const author  = context.actor;
+            const host    = process.env.REGISTRY_HOST;
+            const id      = process.env.REGISTRY_ID;
+            const fixTag  = `${version}_fix${fixNum}`;
+            const image   = `https://${host}/${id}/app:${fixTag}`;
+
+           
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo:  context.repo.repo,
+              state: 'open'
+            });
+            const issue = issues.find(i => i.title === `Release ${version} deployed`);
+            if (!issue) {
+              throw new Error(`Issue "Release ${version} deployed" not found`);
+            }
+
+            const body = `
+              **Fix Date:** ${date}
+              **Fix Author:** @${author}
+              **Fix Version:** ${fixTag}
+            
+              **Commits since \`${prevTag}\`:**
+              ${commits}
+            
+              **Fixed Docker image:** ${image}
+              `.trim();
+              
+              await github.rest.issues.createComment({
+              owner:        context.repo.owner,
+              repo:         context.repo.repo,
+              issue_number: issue.number,
+                body
+            });
