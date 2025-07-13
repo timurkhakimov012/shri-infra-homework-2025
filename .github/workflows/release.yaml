@@ -80,14 +80,10 @@ jobs:
             docker tag   "$IMG" "$IMG_L"
             docker push  "$IMG"
             docker push  "$IMG_L"
-      
-
       - name: Create git tag
         run: |
           git tag -a "${VERSION}" -m "Release ${VERSION}"
           git push origin "${VERSION}"
-
-
       - name: Create Release Issue
         uses: actions/github-script@v6
         with:
