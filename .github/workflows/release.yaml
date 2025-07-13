@@ -56,7 +56,6 @@ jobs:
           if [ ! -f CHANGELOG.md ] || ! grep -q '^# Changelog' CHANGELOG.md; then
             printf "# Changelog\n\n" > CHANGELOG.md
           fi
-
           {
             echo "## ${VERSION} - ${DATE}"
             echo
